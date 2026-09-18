@@ -1,0 +1,25 @@
+# --- AWS Bedrock ---
+boto3>=1.34.0
+
+# --- Ingestion / crawling (Dev A) ---
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+
+# --- Vector store (Dev A) ---
+faiss-cpu>=1.8.0
+numpy>=1.26.0
+
+# --- Backend / serving (Dev B) ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.6.0
+
+# --- UI (Dev B) ---
+streamlit>=1.33.0
+
+# --- Config / env ---
+python-dotenv>=1.0.0
+
+# --- Tests ---
+pytest>=8.0.0
