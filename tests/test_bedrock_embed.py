@@ -8,26 +8,27 @@ run in CI/offline. Run explicitly with real creds to verify Bedrock access:
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
-from app import bedrock, config
+from app import bedrock
+from app.config import settings
+
+# Real Titan is only exercised when creds exist and the backend isn't the local stub.
+_HAS_AWS = bool(settings.aws_access_key_id and settings.aws_secret_access_key)
+_REAL_BACKEND = settings.embedding_backend != "local"
+_RUN_LIVE = _HAS_AWS and _REAL_BACKEND
 
 
-_HAS_AWS = bool(os.getenv("AWS_ACCESS_KEY_ID") and os.getenv("AWS_SECRET_ACCESS_KEY"))
-
-
-@pytest.mark.skipif(not _HAS_AWS, reason="AWS credentials not configured")
+@pytest.mark.skipif(not _RUN_LIVE, reason="AWS credentials / bedrock backend not configured")
 def test_embed_text_returns_expected_dimensions():
     vector = bedrock.embed_text("Hello from the hackathon RAG bot.")
     assert isinstance(vector, list)
-    assert len(vector) == config.EMBED_DIMENSIONS
+    assert len(vector) == settings.embedding_dimensions
     assert all(isinstance(x, float) for x in vector)
 
 
-@pytest.mark.skipif(not _HAS_AWS, reason="AWS credentials not configured")
+@pytest.mark.skipif(not _RUN_LIVE, reason="AWS credentials / bedrock backend not configured")
 def test_embed_texts_batches():
     vectors = bedrock.embed_texts(["alpha", "beta", "gamma"])
     assert len(vectors) == 3
-    assert all(len(v) == config.EMBED_DIMENSIONS for v in vectors)
+    assert all(len(v) == settings.embedding_dimensions for v in vectors)

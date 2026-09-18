@@ -20,7 +20,7 @@ from urllib.parse import urlsplit
 import requests
 from bs4 import BeautifulSoup
 
-from app import config
+from app.config import settings
 from ingest.canonicalizer import canonicalize_url
 from ingest.robots import RobotsChecker
 from ingest.url_validator import (
@@ -137,10 +137,10 @@ def _fetch(session: requests.Session, url: str, allowed_hosts: set[str]) -> Reta
     for _ in range(_MAX_REDIRECTS + 1):
         resp = session.get(
             current,
-            timeout=config.REQUEST_TIMEOUT,
+            timeout=settings.request_timeout,
             allow_redirects=False,
             stream=True,
-            headers={"User-Agent": config.USER_AGENT},
+            headers={"User-Agent": settings.user_agent},
         )
         if resp.is_redirect or resp.is_permanent_redirect:
             location = resp.headers.get("Location")
@@ -159,7 +159,7 @@ def _fetch(session: requests.Session, url: str, allowed_hosts: set[str]) -> Reta
             resp.close()
             return None
 
-        body = _read_capped(resp, config.MAX_RESPONSE_BYTES)
+        body = _read_capped(resp, settings.max_response_bytes)
         resp.close()
         html = body.decode(resp.encoding or "utf-8", errors="replace")
         if not _has_meaningful_text(html):
@@ -187,9 +187,9 @@ def crawl(seed_url: str, *, include_www: bool = True) -> CrawlResult:
     visited: set[str] = set()
     queue: deque[tuple[str, int]] = deque([(seed.canonical_url, 0)])
 
-    while queue and result.pages_retained < config.MAX_PAGES:
+    while queue and result.pages_retained < settings.max_pages:
         url, depth = queue.popleft()
-        if url in visited or depth > config.MAX_DEPTH:
+        if url in visited or depth > settings.max_crawl_depth:
             continue
         visited.add(url)
         result.discovered += 1
@@ -210,12 +210,12 @@ def crawl(seed_url: str, *, include_www: bool = True) -> CrawlResult:
         page.depth = depth
         result.pages.append(page)
 
-        if depth < config.MAX_DEPTH and result.pages_retained < config.MAX_PAGES:
+        if depth < settings.max_crawl_depth and result.pages_retained < settings.max_pages:
             for link in extract_links(page.html, page.canonical_url, seed.allowed_hosts):
                 if link not in visited:
                     queue.append((link, depth + 1))
 
-        if config.CRAWL_DELAY_SECONDS:
-            time.sleep(config.CRAWL_DELAY_SECONDS)
+        if settings.crawl_delay_seconds:
+            time.sleep(settings.crawl_delay_seconds)
 
     return result

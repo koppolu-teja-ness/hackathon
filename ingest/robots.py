@@ -12,15 +12,15 @@ from urllib.robotparser import RobotFileParser
 
 import requests
 
-from app import config
+from app.config import settings
 
 
 class RobotsChecker:
     """Caches one parsed robots.txt per (scheme, host)."""
 
-    def __init__(self, user_agent: str = config.USER_AGENT, timeout: int = config.REQUEST_TIMEOUT):
-        self.user_agent = user_agent
-        self.timeout = timeout
+    def __init__(self, user_agent: str = None, timeout: int = None):
+        self.user_agent = user_agent or settings.user_agent
+        self.timeout = timeout or settings.request_timeout
         self._cache: dict[str, RobotFileParser | None] = {}
 
     def _parser_for(self, url: str) -> RobotFileParser | None:

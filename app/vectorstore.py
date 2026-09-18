@@ -17,7 +17,7 @@ from pathlib import Path
 import faiss
 import numpy as np
 
-from app import config
+from app.config import settings
 
 
 def _normalize(vectors: np.ndarray) -> np.ndarray:
@@ -46,7 +46,7 @@ def build_index(
     index = faiss.IndexFlatIP(matrix.shape[1])
     index.add(matrix)
 
-    out = config.session_dir(session_id)
+    out = settings.session_dir(session_id)
     out.mkdir(parents=True, exist_ok=True)
     faiss.write_index(index, str(out / "index.faiss"))
     (out / "chunks.json").write_text(json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -65,7 +65,7 @@ class SessionIndex:
 
     @classmethod
     def load(cls, session_id: str) -> "SessionIndex":
-        d = config.session_dir(session_id)
+        d = settings.session_dir(session_id)
         index = faiss.read_index(str(d / "index.faiss"))
         chunks = json.loads((d / "chunks.json").read_text(encoding="utf-8"))
         manifest = json.loads((d / "manifest.json").read_text(encoding="utf-8"))

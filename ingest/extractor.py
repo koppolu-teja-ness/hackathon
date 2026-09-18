@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
 
-from app import config
+from app.config import settings
 from ingest.crawler import RetainedPage
 
 # Structural/boilerplate elements dropped before extraction.
@@ -107,7 +107,7 @@ def clean_page(page: RetainedPage, session_id: str) -> CleanedDocument:
 
 def persist_page(session_id: str, doc: CleanedDocument, raw_html: str) -> None:
     """Write raw HTML and cleaned text under the session directory (§11, §15)."""
-    d = config.session_dir(session_id)
+    d = settings.session_dir(session_id)
     (d / "raw").mkdir(parents=True, exist_ok=True)
     (d / "cleaned").mkdir(parents=True, exist_ok=True)
     (d / "raw" / f"{doc.document_id}.html").write_text(raw_html, encoding="utf-8")

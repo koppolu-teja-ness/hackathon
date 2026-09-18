@@ -10,13 +10,12 @@ embed function), so the assembly + reload can be tested without AWS/network.
 
 from __future__ import annotations
 
-import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
 
-from app import config
+from app.config import settings
 from app.vectorstore import build_index
 from ingest.chunker import chunk_documents
 from ingest.crawler import CrawlResult, RetainedPage, crawl
@@ -24,6 +23,17 @@ from ingest.extractor import clean_page, persist_page
 from ingest.service_detector import detect_services
 
 EmbedFn = Callable[[list[str]], list[list[float]]]
+
+
+class IngestionNotImplemented(NotImplementedError):
+    """Retained so app/main.py's legacy fixture-fallback branch still resolves.
+
+    The real pipeline is implemented, so this is no longer raised.
+    """
+
+
+class IngestionError(RuntimeError):
+    """Raised when a crawl produces no usable knowledge base (§28)."""
 
 
 @dataclass
@@ -51,7 +61,7 @@ def process_pages(
     crawl_result: CrawlResult,
     *,
     embed_fn: EmbedFn | None = None,
-    embedding_model: str = config.BEDROCK_EMBED_MODEL_ID,
+    embedding_model: str | None = None,
 ) -> IngestionResult:
     """Clean -> detect -> chunk -> embed -> build index for crawled pages.
 
@@ -97,8 +107,8 @@ def process_pages(
         "chunks": len(chunks),
         "services": service_names,
         "service_catalog": catalog,
-        "embedding_model": embedding_model,
-        "embedding_dimensions": config.EMBED_DIMENSIONS,
+        "embedding_model": embedding_model or settings.titan_model_id,
+        "embedding_dimensions": settings.embedding_dimensions,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "status": "ready",
     }
@@ -112,45 +122,27 @@ def process_pages(
 
 
 def run_ingestion(
-    seed_url: str,
+    session_id: str,
+    url: str,
+    session_dir=None,
     *,
-    session_id: str | None = None,
     embed_fn: EmbedFn | None = None,
     include_www: bool = True,
-) -> IngestionResult:
-    """Full pipeline entry point: crawl a seed URL and build its knowledge base."""
-    session_id = session_id or uuid.uuid4().hex[:12]
-    crawl_result = crawl(seed_url, include_www=include_www)
-    return process_pages(session_id, seed_url, crawl_result, embed_fn=embed_fn)
+) -> dict:
+    """Crawl `url` and build its session-scoped knowledge base.
 
-"""Owned by Dev A (see TEAM_PLAN.md). Real crawl -> clean -> chunk -> embed -> index pipeline.
-
-This stub only defines the integration contract Dev B's app/main.py depends on, so
-POST /ingest can be wired end-to-end today and swapped to the real pipeline at
-Integration Checkpoint 1 without changing the caller.
-"""
-from pathlib import Path
-
-
-class IngestionNotImplemented(NotImplementedError):
-    """Raised until Dev A's real crawl pipeline (Milestones 2-4) lands."""
-
-
-def run_ingestion(session_id: str, url: str, session_dir: Path) -> dict:
-    """Crawl `url`, build chunks + embeddings, and persist them under `session_dir`.
-
-    Expected return shape (see architecture.md Section 8/9):
-        {
-          "pages_discovered": int,
-          "pages_retained": int,
-          "pages_failed": int,
-          "chunks": int,
-          "services": list[str],
-        }
-    Must write session_dir/{raw/,cleaned/,index.faiss,chunks.json,manifest.json}.
+    Matches the contract app/main.py depends on: returns a dict of counts and
+    raises on failure so the caller marks the session failed (§28). `session_dir`
+    is accepted for signature compatibility; paths are derived from settings.
     """
-    raise IngestionNotImplemented(
-        "ingest.pipeline.run_ingestion is not implemented yet (Dev A, Milestones 2-4). "
-        "app/main.py falls back to cloning data/sessions/fixture_demo so Dev B's "
-        "retrieval/flow/UI work is testable end-to-end in the meantime."
-    )
+    crawl_result = crawl(url, include_www=include_www)
+    result = process_pages(session_id, url, crawl_result, embed_fn=embed_fn)
+    if result.status != "ready":
+        raise IngestionError(result.error or "Ingestion failed.")
+    return {
+        "pages_discovered": result.pages_discovered,
+        "pages_retained": result.pages_retained,
+        "pages_failed": result.pages_failed,
+        "chunks": result.chunks,
+        "services": result.services,
+    }

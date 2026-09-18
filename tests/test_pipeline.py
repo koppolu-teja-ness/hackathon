@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import pytest
 
-from app import config
+from app.bedrock import local_hash_embed
+from app.config import settings
 from app.vectorstore import SessionIndex
-from ingest.build_fixture import _deterministic_embedding
 from ingest.crawler import CrawlResult, RetainedPage
 from ingest.pipeline import process_pages
 
@@ -18,7 +18,7 @@ SEED = "https://acme.com"
 
 
 def _embed(texts: list[str]) -> list[list[float]]:
-    return [_deterministic_embedding(t, config.EMBED_DIMENSIONS) for t in texts]
+    return [local_hash_embed(t, settings.embedding_dimensions) for t in texts]
 
 
 def _page(path: str, title: str, body_heading: str, body: str) -> RetainedPage:
@@ -41,7 +41,8 @@ def _crawl_result(pages: list[RetainedPage], failed: int = 0) -> CrawlResult:
 
 @pytest.fixture
 def _tmp_data(monkeypatch, tmp_path):
-    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    # settings is a frozen dataclass, so patch the method on the class (all writers use it).
+    monkeypatch.setattr(type(settings), "session_dir", lambda self, sid: tmp_path / sid)
     return tmp_path
 
 
@@ -78,7 +79,7 @@ def test_pipeline_reload_after_restart_retrieves(_tmp_data):
     # Fresh load simulates a process restart.
     loaded = SessionIndex.load("sess2")
     assert loaded.manifest["status"] == "ready"
-    assert loaded.manifest["embedding_dimensions"] == config.EMBED_DIMENSIONS
+    assert loaded.manifest["embedding_dimensions"] == settings.embedding_dimensions
 
     target = loaded.chunks[0]
     hits = loaded.search(_embed([target["text"]])[0], k=3)

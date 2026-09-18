@@ -8,7 +8,7 @@ the fixture chunk shape Dev B builds against.
 
 from __future__ import annotations
 
-from app import config
+from app.config import settings
 from ingest.extractor import CleanedDocument
 
 # Rough words<->tokens conversion (~0.75 words per token for English prose).
@@ -37,10 +37,12 @@ def _split_words(text: str, target_tokens: int, overlap_tokens: int) -> list[str
 
 def chunk_document(
     doc: CleanedDocument,
-    target_tokens: int = config.CHUNK_TARGET_TOKENS,
-    overlap_tokens: int = config.CHUNK_OVERLAP_TOKENS,
+    target_tokens: int = None,
+    overlap_tokens: int = None,
 ) -> list[dict]:
     """Return metadata-complete chunk dicts for one cleaned document (§13)."""
+    target_tokens = target_tokens or settings.chunk_target_tokens
+    overlap_tokens = overlap_tokens if overlap_tokens is not None else settings.chunk_overlap_tokens
     chunks: list[dict] = []
     idx = 0
     for section in doc.sections:
@@ -65,8 +67,8 @@ def chunk_document(
 
 def chunk_documents(
     documents: list[CleanedDocument],
-    target_tokens: int = config.CHUNK_TARGET_TOKENS,
-    overlap_tokens: int = config.CHUNK_OVERLAP_TOKENS,
+    target_tokens: int = None,
+    overlap_tokens: int = None,
 ) -> list[dict]:
     chunks: list[dict] = []
     for doc in documents:
