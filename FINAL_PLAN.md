@@ -18,10 +18,9 @@ The design intentionally avoids features that add demo risk without materially i
 
 | Area | Decision |
 |---|---|
-| Product focus | Information-driven chatbot for **ness.com only**. No transactional/service actions. |
+| Product focus | Information-driven chatbot. No transactional/service actions. |
 | Backend | **FastAPI** REST API. |
 | Front-end | Standalone **HTML/JS chat page** for the demo. |
-| Admin | **Streamlit** for ingestion, conversation review, and basic analytics. No second chat UI. |
 | Chat model | **Amazon Nova Pro** (`amazon.nova-pro-v1:0`) via Bedrock Converse API. |
 | Embeddings | **Amazon Titan Embed Text v2** (`amazon.titan-embed-text-v2:0`), 1024-dim normalized. |
 | Vector store | **FAISS** `IndexFlatIP`, persisted locally. |
@@ -68,8 +67,6 @@ flowchart TD
     RAG -->|answer + sources| API
 
     API --> DB[(SQLite)]
-
-    ST[Streamlit Admin] --> API
 
     SC[Scraper] --> RAW[Cached Raw Pages]
     RAW --> CH[Chunk + Metadata]
